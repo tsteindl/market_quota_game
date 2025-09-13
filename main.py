@@ -78,6 +78,7 @@ release_counter = None
 release_value = None
 hit = False
 hit_point = None
+hit_point_val = None
 
 
 # --- Main loop ---
@@ -149,26 +150,27 @@ while running:
         # released forward path
         if released:
             forward_window = S[release_counter:counter+1]
-            forward_points = []
-            for j, val in enumerate(forward_window):
-                x = anchor[0] + j * spacing_x
-                y = anchor[1] - (val - release_value) * scale_y
-                forward_points.append((x, y))
+            forward_points = [(anchor[0] + j * spacing_x,
+                            anchor[1] - (val - release_value) * scale_y)
+                            for j, val in enumerate(forward_window)]
 
             if len(forward_points) > 1:
                 pygame.draw.lines(screen, (0, 150, 250), False, forward_points, 2)
 
-            # check hit
-            if rect_final and not hit:
-                for p in forward_points:
-                    if rect_final.collidepoint(p):
+            # check hit only once
+            if rect_final_val and not hit:
+                for j, (px, py) in enumerate(forward_points):
+                    p_val = release_value - (anchor[1] - py)/scale_y
+                    if (rect_final_val["x_left"] <= px <= rect_final_val["x_left"] + rect_final_val["x_width"] and 
+                        rect_final_val["y_top_val"] <= p_val <= rect_final_val["y_bottom_val"]):
                         hit = True
+                        hit_point_val = p_val
+                        hit_point_x = px
                         paused = True
-                        hit_point = p
                         break
 
-            # pause when path reaches rectangle right edge
-            if rect_final and forward_points[-1][0] >= rect_final.right:
+            # pause if last forward point reaches rectangle right edge
+            if rect_final_val and forward_points[-1][0] >= rect_final_val["x_left"] + rect_final_val["x_width"]:
                 paused = True
 
         # anchor marker
@@ -217,8 +219,10 @@ while running:
                                     abs(rect_end[1]-rect_start[1]))
             pygame.draw.rect(screen, (100, 100, 200), rect_temp, 1)
             
-        if hit and hit_point:
-            pygame.draw.circle(screen, (255, 0, 0), (int(hit_point[0]), int(hit_point[1])), 6)
+        if hit and hit_point_val is not None:
+            # pygame.draw.circle(screen, (255, 0, 0), (int(hit_point[0]), int(hit_point[1])), 6)
+            py = anchor[1] - (release_value - hit_point_val) * scale_y
+            pygame.draw.circle(screen, (255, 0, 0), (int(hit_point_x), int(py)), 6)
 
     pygame.display.flip()
     clock.tick(FPS)
