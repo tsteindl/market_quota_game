@@ -155,7 +155,7 @@ while running:
                             for j, val in enumerate(forward_window)]
 
             if len(forward_points) > 1:
-                pygame.draw.lines(screen, (0, 150, 250), False, forward_points, 2)
+                pygame.draw.lines(screen, (0, 200, 100), False, forward_points, 2)
 
             # check hit only once
             if rect_final_val and not hit:
@@ -220,7 +220,6 @@ while running:
             pygame.draw.rect(screen, (100, 100, 200), rect_temp, 1)
             
         if hit and hit_point_val is not None:
-            # pygame.draw.circle(screen, (255, 0, 0), (int(hit_point[0]), int(hit_point[1])), 6)
             py = anchor[1] - (release_value - hit_point_val) * scale_y
             pygame.draw.circle(screen, (255, 0, 0), (int(hit_point_x), int(py)), 6)
 
