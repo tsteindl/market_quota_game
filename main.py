@@ -76,6 +76,7 @@ paused = False
 release_counter = None
 release_value = None
 hit = False
+hit_point = None
 
 
 # --- Main loop ---
@@ -148,6 +149,7 @@ while running:
                     if rect_final.collidepoint(p):
                         hit = True
                         paused = True
+                        hit_point = p
                         break
 
             # pause when path reaches rectangle right edge
@@ -181,6 +183,9 @@ while running:
                                     abs(rect_end[0]-rect_start[0]),
                                     abs(rect_end[1]-rect_start[1]))
             pygame.draw.rect(screen, (100, 100, 200), rect_temp, 1)
+            
+        if hit and hit_point:
+            pygame.draw.circle(screen, (255, 0, 0), (int(hit_point[0]), int(hit_point[1])), 6)
 
     pygame.display.flip()
     clock.tick(FPS)
