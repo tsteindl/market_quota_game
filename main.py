@@ -80,10 +80,18 @@ hit = False
 hit_point = None
 hit_point_val = None
 
+budget = 10000
+stake = 1000
+stake_min = 100
+stake_max = 5000
+hit_processed = False  # to ensure we update budget only once
 
 # --- Main loop ---
 running = True
 while running:
+    mouse_pos = pygame.mouse.get_pos()
+    mouse_pressed = pygame.mouse.get_pressed()
+    
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -94,6 +102,12 @@ while running:
             else:
                 scale_y /= 1.1   # zoom out
             scale_y = max(1000, min(scale_y, 200000))
+        elif event.type == pygame.KEYDOWN:
+            # adjust stake with up/down arrows
+            if event.key == pygame.K_UP:
+                stake = min(stake_max, stake + 1000)
+            elif event.key == pygame.K_DOWN:
+                stake = max(stake_min, stake - 1000)
         elif event.type == pygame.MOUSEBUTTONDOWN and not released:
             if event.button == 1:
                 dragging = True
@@ -132,6 +146,13 @@ while running:
 
     # --- Clear ---
     screen.fill((30, 30, 30))
+
+    # --- Draw budget and stake ---
+    budget_text = font.render(f"Budget: ${budget}", True, (255, 255, 0))
+    screen.blit(budget_text, (10, 10))
+    stake_text = font.render(f"Stake: ${stake} (UP/DOWN to change)", True, (255, 255, 255))
+    screen.blit(stake_text, (10, 30))
+
 
     if counter > 0:
         # past history up to current counter
@@ -212,6 +233,21 @@ while running:
             color = (50, 200, 50) if hit else (50, 50, 200)
             pygame.draw.rect(screen, color, (x_left, y_top, width, height), 2)
             
+            # --- Draw multiplier text ---
+            multiplier = 2
+            multiplier_text = font.render(f"x{multiplier}", True, (255, 255, 0))
+            text_rect = multiplier_text.get_rect(center=(x_left + width/2, y_top + height/2))
+            screen.blit(multiplier_text, text_rect)
+            
+            # --- Update budget when hit/miss processed ---
+            if paused and not hit_processed:
+                if hit:
+                    budget += stake * 2
+                else:
+                    budget -= stake
+                hit_processed = True
+            
+            
         elif rect_start and rect_end:
             rect_temp = pygame.Rect(min(rect_start[0], rect_end[0]),
                                     min(rect_start[1], rect_end[1]),
@@ -222,6 +258,31 @@ while running:
         if hit and hit_point_val is not None:
             py = anchor[1] - (release_value - hit_point_val) * scale_y
             pygame.draw.circle(screen, (255, 0, 0), (int(hit_point_x), int(py)), 6)
+    
+    # --- Draw resume button if paused ---
+    button_rect = pygame.Rect(10, 50, 100, 30)
+    if paused:
+        pygame.draw.rect(screen, (200, 200, 50), button_rect)
+        button_text = font.render("Resume", True, (0, 0, 0))
+        screen.blit(button_text, (button_rect.x + 10, button_rect.y + 5))
+    
+    # --- Handle mouse click on resume button ---
+    if paused and mouse_pressed[0]:  # left mouse button
+        if button_rect.collidepoint(mouse_pos):
+            paused = False
+            rect_start = rect_end = rect_final_val = None
+            released = False
+            hit = False
+            hit_processed = False  # reset for next round
+            
+            first_value = S[counter]
+
+            # Recalculate S starting from current value
+            S0_new = S[counter]
+            release_value = S0_new  # new baseline for next rectangle
+            n_remaining = n  # or however many points you want for the next forward simulation
+            S = geom_brownian_motion(S0_new, m, s, n_remaining, dt)
+            counter = 0  # reset counter for new forward path
 
     pygame.display.flip()
     clock.tick(FPS)
