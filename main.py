@@ -70,6 +70,7 @@ dragging = False
 rect_start = None
 rect_end = None
 rect_final = None
+rect_final_val = None
 
 released = False
 paused = False
@@ -85,6 +86,13 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.MOUSEWHEEL:
+            # scroll up → zoom in, scroll down → zoom out
+            if event.y > 0: 
+                scale_y *= 1.1   # zoom in
+            else:
+                scale_y /= 1.1   # zoom out
+            scale_y = max(1000, min(scale_y, 200000))
         elif event.type == pygame.MOUSEBUTTONDOWN and not released:
             if event.button == 1:
                 dragging = True
@@ -105,6 +113,13 @@ while running:
                 released = True
                 release_counter = counter
                 release_value = S[counter]
+                
+                rect_final_val = {
+                    "x_left": rect_final.left,
+                    "x_width": rect_final.width,
+                    "y_top_val": release_value - (anchor[1] - rect_final.top)/scale_y,
+                    "y_bottom_val": release_value - (anchor[1] - rect_final.bottom)/scale_y
+                }
             else:
                 rect_start = rect_end = rect_final = None  # discard
 
@@ -158,7 +173,10 @@ while running:
 
         # anchor marker
         pygame.draw.circle(screen, (200, 50, 50), anchor, 5)
-
+        
+        draw_dashed_line(screen, (200, 50, 50),
+                         (anchor[0], 0), (anchor[0], HEIGHT))
+        
         # latest value text
         latest = S[counter]
 
@@ -174,15 +192,24 @@ while running:
         ref_val = release_value if released else past_latest
         y_first = anchor[1] - (first_value - ref_val) * scale_y
         draw_dashed_line(screen, (200, 200, 0), (0, int(y_first)), (WIDTH, int(y_first)), width=1)
+        
+        y_first_text = font.render(f"{first_value:.5f}", True, (200, 200, 200))
+        screen.blit(y_first_text, (WIDTH - 70, y_first - 20))
 
         # dashed band for min offset
         draw_dashed_line(screen, (100, 100, 100),
                          (anchor[0]+min_offset, 0), (anchor[0]+min_offset, HEIGHT))
 
         # draw rectangle
-        if rect_final:
+        if rect_final_val:
+            x_left = rect_final_val["x_left"]
+            width = rect_final_val["x_width"]
+            y_top = anchor[1] - (release_value - rect_final_val["y_top_val"]) * scale_y
+            y_bottom = anchor[1] - (release_value - rect_final_val["y_bottom_val"]) * scale_y
+            height = y_bottom - y_top
             color = (50, 200, 50) if hit else (50, 50, 200)
-            pygame.draw.rect(screen, color, rect_final, 2)
+            pygame.draw.rect(screen, color, (x_left, y_top, width, height), 2)
+            
         elif rect_start and rect_end:
             rect_temp = pygame.Rect(min(rect_start[0], rect_end[0]),
                                     min(rect_start[1], rect_end[1]),
