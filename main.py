@@ -161,8 +161,14 @@ while running:
 
         # latest value text
         latest = S[counter]
+
+        if released and len(forward_points) > 0:
+            px, py = forward_points[-1]
+        else:
+            px, py = past_points[0]
+
         text = font.render(f"{latest:.5f}", True, (200, 200, 200))
-        screen.blit(text, (past_points[0][0] + 10, past_points[0][1] - 20))
+        screen.blit(text, (px + 10, py - 20))
 
         # dashed horizontal line at first value
         ref_val = release_value if released else past_latest
