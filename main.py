@@ -32,8 +32,11 @@ def geom_brownian_motion(S0, m, s, n, dt):
     price = S0*ret
     return price
 
-t = pd.date_range(start=datetime.now(), periods=n, freq="10ms")
-S = geom_brownian_motion(S0, m, s, n, dt)
+def gbm_step(S0, m, s, dt):
+    logret = np.random.normal(m * dt, s * np.sqrt(dt))
+    ret = np.exp(logret)
+    price = S0*ret
+    return price
 
 # --- Display parameters ---
 anchor = (WIDTH // 4, HEIGHT // 2)
@@ -42,7 +45,8 @@ spacing_x = 1
 window_length = 200
 
 # first value line
-first_value = S[0]
+S = [S0]
+first_value = S0
 
 # --- Mouse interaction ---
 dragging = False
@@ -139,6 +143,9 @@ while running:
     # update counter only if not paused
     now = datetime.now()
     if not paused and (now - last_update) >= timedelta(milliseconds=dt_ms):
+        S_new = gbm_step(S[-1], m, s, dt)
+        S.append(S_new)
+        
         counter += 1
         last_update = now
 
@@ -279,7 +286,6 @@ while running:
             S0_new = S[counter]
             release_value = S0_new  # new baseline for next rectangle
             n_remaining = n  # or however many points you want for the next forward simulation
-            S = geom_brownian_motion(S0_new, m, s, n_remaining, dt)
             counter = 0  # reset counter for new forward path
 
     pygame.display.flip()
