@@ -1,7 +1,5 @@
 import pygame
-import sys
 import numpy as np
-import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import pandas as pd
 
