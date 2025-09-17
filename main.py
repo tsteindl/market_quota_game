@@ -161,13 +161,20 @@ while running:
 
     if counter > 0:
         # past history up to current counter
-        past_window = S[max(0, counter-window_length):counter+1]
+        if released:
+            past_window = S[max(0, release_counter-window_length):release_counter+1]
+        else:
+            past_window = S[max(0, counter-window_length):counter+1]
         past_latest = past_window[-1]
 
         past_points = []
         for j, val in enumerate(past_window[::-1]):
-            x = anchor[0] - j * spacing_x
-            y = anchor[1] - (val - past_latest) * scale_y
+            if released:
+                x = anchor[0] - j * spacing_x
+                y = anchor[1] - (val - past_latest) * scale_y
+            else:
+                x = anchor[0] - j * spacing_x
+                y = anchor[1] - (val - past_latest) * scale_y
             past_points.append((x, y))
 
         if len(past_points) > 1:
