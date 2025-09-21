@@ -88,6 +88,8 @@ stake_min = 100
 stake_max = 5000
 hit_processed = False  # to ensure we update budget only once
 
+MIN_DRAG_DIST = 10
+
 # --- Main loop ---
 running = True
 while running:
@@ -120,6 +122,11 @@ while running:
         elif event.type == pygame.MOUSEBUTTONUP and dragging:
             dragging = False
             rect_end = event.pos
+            
+            drag_dist = ((rect_end[0] - rect_start[0])**2 + (rect_end[1] - rect_start[1])**2)**0.5
+            
+            if drag_dist < MIN_DRAG_DIST:
+                continue
             rect_temp = pygame.Rect(min(rect_start[0], rect_end[0]),
                                     min(rect_start[1], rect_end[1]),
                                     abs(rect_end[0]-rect_start[0]),
@@ -127,7 +134,7 @@ while running:
             # enforce vertical distance
             if rect_temp.centerx - anchor[0] >= min_offset:
                 rect_final = rect_temp
-                released = True
+                # released = True
                 release_counter = counter
                 release_value = S[counter]
                 
@@ -242,15 +249,31 @@ while running:
             y_top = anchor[1] - (release_value - rect_final_val["y_top_val"]) * scale_y
             y_bottom = anchor[1] - (release_value - rect_final_val["y_bottom_val"]) * scale_y
             height = y_bottom - y_top
-            color = (50, 200, 50) if hit else (50, 50, 200)
-            pygame.draw.rect(screen, color, (x_left, y_top, width, height), 2)
-            
-            # --- Draw multiplier text ---
-            multiplier = 2
-            multiplier_text = font.render(f"x{multiplier}", True, (255, 255, 0))
-            text_rect = multiplier_text.get_rect(center=(x_left + width/2, y_top + height/2))
-            screen.blit(multiplier_text, text_rect)
-            
+
+            if not released:
+                color = (50, 50, 200)  # blue before confirming
+                pygame.draw.rect(screen, color, (x_left, y_top, width, height), 2)
+                # draw "Click to confirm"
+                confirm_text = font.render("Confirm", True, (255, 255, 0))
+                text_rect = confirm_text.get_rect(center=(x_left + width/2, y_top + height/2))
+                screen.blit(confirm_text, text_rect)
+
+                # handle confirm click
+                if mouse_pressed[0] and not dragging:
+                    mouse_pos = pygame.mouse.get_pos()
+                    rect_area = pygame.Rect(x_left, y_top, width, height)
+                    if rect_area.collidepoint(mouse_pos):
+                        released = True
+                        # do NOT reset release_value; keep it at the drag value
+                        release_counter = counter
+            else:
+                # after release, keep rectangle visible, draw multiplier or color
+                color = (50, 200, 50) if hit else (50, 50, 200)
+                pygame.draw.rect(screen, color, (x_left, y_top, width, height), 2)
+                multiplier_text = font.render("x2", True, (255, 255, 0))
+                text_rect = multiplier_text.get_rect(center=(x_left + width/2, y_top + height/2))
+                screen.blit(multiplier_text, text_rect)
+
             # --- Update budget when hit/miss processed ---
             if paused and not hit_processed:
                 if hit:
