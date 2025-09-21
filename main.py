@@ -22,6 +22,8 @@ counter = 0
 r = 0.01
 s = 0.1474
 S0 = 100
+n_paths = 4_000
+
 m = r - 0.5*s*s
 dt = 1/365/24/60/60/100 #10 ms in years
 n = 100*60*10
@@ -37,6 +39,37 @@ def gbm_step(S0, m, s, dt):
     ret = np.exp(logret)
     price = S0*ret
     return price
+
+def compute_ratio_mc(S0, m, s, n_paths, dt, rect, show_paths:int=None):
+    x0, y0, x1, x2 = rect
+    n = x1
+    S_fut = geom_brownian_motion(S0, m, s, (n, n_paths), dt)
+    t = np.arange(n)
+    t_broadcasted = t[:, None]  # shape (n,1)
+
+    mask = (t_broadcasted >= x0) & (t_broadcasted <= x1) & (S >= y0) & (S <= y1)
+
+    hits_mask = np.any(mask, axis=0)  # shape (n_paths,), True if path hits
+
+    hits_numeric = hits_mask.astype(float)
+
+    first_idx = np.argmax(mask, axis=0)  # shape (n_paths,)
+
+    first_idx[~hits_mask] = -1
+
+    cumsum_hits = np.cumsum(hits_numeric)
+
+    cum_prob = cumsum_hits / np.arange(1, len(hits_numeric)+1)
+
+    prob_hit = cum_prob[-1]
+    
+    out = {}
+    out["prob"] = prob_hit
+    
+    if show_paths:
+        out["paths"] = S_fut[:, min(S_fut.shape[1], show_paths)]
+    return out
+
 
 # --- Display parameters ---
 anchor = (WIDTH // 4, HEIGHT // 2)
@@ -134,9 +167,7 @@ while running:
             # enforce vertical distance
             if rect_temp.centerx - anchor[0] >= min_offset:
                 rect_final = rect_temp
-                # released = True
-                release_counter = counter
-                release_value = S[counter]
+                release_value = S[-1]
                 
                 rect_final_val = {
                     "x_left": rect_final.left,
@@ -191,7 +222,7 @@ while running:
         if released:
             forward_window = S[release_counter:counter+1]
             forward_points = [(anchor[0] + j * spacing_x,
-                            anchor[1] - (val - release_value) * scale_y)
+                            anchor[1] - (val - forward_window[0]) * scale_y)
                             for j, val in enumerate(forward_window)]
 
             if len(forward_points) > 1:
@@ -253,10 +284,22 @@ while running:
             if not released:
                 color = (50, 50, 200)  # blue before confirming
                 pygame.draw.rect(screen, color, (x_left, y_top, width, height), 2)
-                # draw "Click to confirm"
+                
+                curr_stock_price = S[-1]
+                # result = compute_ratio_mc(curr_stock_price, m, s, (n, n_paths), dt)
+                # ratio = result["prob"]
+                # quota = 1/ratio
+                quota = 2
+                
+                quota_text = font.render(f"x{quota:.2f}", True, (255, 255, 0))
                 confirm_text = font.render("Confirm", True, (255, 255, 0))
-                text_rect = confirm_text.get_rect(center=(x_left + width/2, y_top + height/2))
-                screen.blit(confirm_text, text_rect)
+                rect_center_x = x_left + width / 2
+                rect_center_y = y_top + height / 2
+                line1_rect = quota_text.get_rect(center=(rect_center_x, rect_center_y - 10))
+                line2_rect = confirm_text.get_rect(center=(rect_center_x, rect_center_y + 10))
+                
+                screen.blit(quota_text, line1_rect)
+                screen.blit(confirm_text, line2_rect)
 
                 # handle confirm click
                 if mouse_pressed[0] and not dragging:
@@ -264,7 +307,6 @@ while running:
                     rect_area = pygame.Rect(x_left, y_top, width, height)
                     if rect_area.collidepoint(mouse_pos):
                         released = True
-                        # do NOT reset release_value; keep it at the drag value
                         release_counter = counter
             else:
                 # after release, keep rectangle visible, draw multiplier or color
